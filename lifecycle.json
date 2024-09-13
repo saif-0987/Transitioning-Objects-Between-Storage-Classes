@@ -1,0 +1,24 @@
+{
+    "Rules": [
+        {
+            "Filter": {
+                "Prefix": ""
+            },
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 5,
+                    "StorageClass": "hot.test"
+                },
+ {
+                    "Days": 20,
+                    "StorageClass": "cold.test"
+                }
+            ],
+            "Expiration": {
+                "Days": 365
+            },
+            "ID": "double transition and expiration"
+        }
+    ]
+}
