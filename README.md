@@ -1,22 +1,22 @@
-## Transitioning-of-an-object-from-one-storage-class-to_another
+## Transitioning Objects Between Storage Classes
 ### Objectives:
-We can move objects from one storage class to another storage class
+The goal is to move objects from one storage class to another within a Ceph cluster.
 
 ### Prerequisites:
-- Obviously a running Ceph Cluster.
+- A running Ceph Cluster.
 - RGW services
-- S3 user should be created
-- Root level access
+- An S3 user created.
+- Root-level access to the Ceph cluster.
 
 ### Procedure:
 1. Create a new data pool.
 ```
-root@ceph-host-01:~# ceph osd pool create test.hot.data
+root@ceph-host-01:# ceph osd pool create test.hot.data
 ```
+
 2. Add a new storage class.
 ```
-root@client-01:/# radosgw-admin zonegroup placement add  --rgw-zonegroup default --placement-id default-placement --stor
-age-class cold.test
+root@ceph-host-01:# radosgw-admin zonegroup placement add  --rgw-zonegroup default --placement-id default-placement --storage-class hot.test
 [
     {
         "key": "default-placement",
@@ -31,10 +31,10 @@ age-class cold.test
     }
 ]
 ```
-3. Provide the zone placement information for the new storage class.
 
+3. Provide zone placement information for the new storage class.
 ```
-root@client-01:/# radosgw-admin zone placement add --rgw-zone default --placement-id default-placement --storage-class hot.test --data-pool test.hot.data
+root@ceph-host-01:# radosgw-admin zone placement add --rgw-zone default --placement-id default-placement --storage-class hot.test --data-pool test.hot.data
 {
            "key": "default-placement",
            "val": {
@@ -51,36 +51,37 @@ root@client-01:/# radosgw-admin zone placement add --rgw-zone default --placemen
                "index_type": 0
            }
 ```
+
 4. Enable the rgw application on the data pool.
 ```
-root@client-01:/# ceph osd pool application enable test.hot.data rgw
+root@ceph-host-01:# ceph osd pool application enable test.hot.data rgw
 enabled application 'rgw' on pool 'test.hot.data'
 ```
 
 5. Restart all the rgw daemons.
 ```
-root@client-01:/# ceph orch restart rgw.client
+root@ceph-host-01:# ceph orch restart rgw.client
 Scheduled to restart rgw.client.test-1.dtqdxk on host 'test-1'
 ```
 
 6. Create a bucket.
 ```
- aws s3api create-bucket --bucket my-test-bucket --create-bucket-configuration LocationConstraint=default:default-placement --endpoint-url http://myhost-01.com
+root@ceph-host-01:# aws s3api create-bucket --bucket my-test-bucket --create-bucket-configuration LocationConstraint=default:default-placement --endpoint-url http://192.168.9.12:8001
 ```
-7. Add the object.
-```
-aws s3api put-object --bucket my-test-bucket --key 10mb_file --endpoint-url http://myhost-01.com
-```
-8. Create a second data pool.
 
+7. Add an object to the bucket.
 ```
-root@client-01:/# ceph osd pool create test.cold.data
+root@ceph-host-01:# aws s3api put-object --bucket my-test-bucket --key 10mb_file --endpoint-url http://192.168.9.12:8001
+```
+
+8. Create a second data pool.
+```
+root@ceph-host-01:# ceph osd pool create test.cold.data
 ```
 
 9. Add a new storage class.
 ```
-root@client-01:/# radosgw-admin zonegroup placement add  --rgw-zonegroup default --placement-id default-placement --stor
-age-class cold.test
+root@ceph-host-01:# radosgw-admin zonegroup placement add  --rgw-zonegroup default --placement-id default-placement --storage-class cold.test
 [
     {
         "key": "default-placement",
@@ -99,35 +100,36 @@ age-class cold.test
 
 10. Provide the zone placement information for the new storage class.
 ```
-root@client-01:/# radosgw-admin zone placement add --rgw-zone default --placement-id default-placement --storage-class c
-old.test --data-pool test.cold.data
+root@ceph-host-01:# radosgw-admin zone placement add --rgw-zone default --placement-id default-placement --storage-class cold.test --data-pool test.cold.data
 ```
 
 11. Enable rgw application on the data pool.
 ```
-root@client-01:/# ceph osd pool application enable test.cold.data rgw
+root@ceph-host-01:# ceph osd pool application enable test.cold.data rgw
 enabled application 'rgw' on pool 'test.cold.data'
 ```
+
 12. Restart all the rgw daemons.
 ```
-root@client-01:/# ceph orch restart rgw.client
+root@ceph-host-01:# ceph orch restart rgw.client
 Scheduled to restart rgw.client.test-1.dtqdxk on host 'test-1'
 ```
+
 13. View the zone group configuration.
 ```
-root@client-01:/# radosgw-admin zonegroup get
+root@ceph-host-01:# radosgw-admin zonegroup get
 {
-    "id": "fa0ab50a-c185-45bf-9b0f-881b139b3264",
+    "id": "9c1e3d4f-8a7b-4d5c-9e3f-2b4a6c8d0e1f",
     "name": "default",
     "api_name": "default",
     "is_master": "true",
     "endpoints": [],
     "hostnames": [],
     "hostnames_s3website": [],
-    "master_zone": "886f47bb-2071-4f12-9fd8-df455f63ac81",
+    "master_zone": "c1a2e3f4-5678-9abc-def0-1234567890ab",
     "zones": [
         {
-            "id": "886f47bb-2071-4f12-9fd8-df455f63ac81",
+            "id": "c1a2e3f4-5678-9abc-def0-1234567890ab",
             "name": "default",
             "endpoints": [],
             "log_meta": "false",
@@ -158,11 +160,12 @@ root@client-01:/# radosgw-admin zonegroup get
     }
 }
 ```
+
 14. View the zone configuration.
 ```
-root@client-01:/# radosgw-admin zone get
+root@ceph-host-01:# radosgw-admin zone get
 {
-    "id": "886f47bb-2071-4f12-9fd8-df455f63ac81",
+    "id": "9c1e3d4f-8a7b-4d5c-9e3f-2b4a6c8d0e1f",
     "name": "default",
     "domain_root": "default.rgw.meta:root",
     "control_pool": "default.rgw.control",
@@ -210,12 +213,13 @@ root@client-01:/# radosgw-admin zone get
 
 15. Create a bucket.
 ```
- root@client-01:/# aws s3api create-bucket --bucket my-test-bucket --create-bucket-configuration LocationConstraint=default:default-placement --endpoint-url http://myhost-01.com
+ root@ceph-host-01:#  aws s3api create-bucket --bucket my-test-bucket --create-bucket-configuration LocationConstraint=default:default-placement --endpoint-url http://192.168.9.12:8001
 
 ```
+
 16. List the objects prior to transition.
 ```
-root@client-01:/# radosgw-admin bucket list --bucket my-test-bucket
+root@ceph-host-01:#  radosgw-admin bucket list --bucket my-test-bucket
 [
     {
         "name": "10mb_file",
@@ -247,14 +251,182 @@ root@client-01:/# radosgw-admin bucket list --bucket my-test-bucket
 ]
 ```
 
-17. Create a JSON file for lifecycle configuration.
+17. Create a JSON file `lifecycle.json` for lifecycle configuration.
 
-18.  Set the lifecycle configuration on the bucket.
+19. Verify lifeycle configuration is not yet applied 
 ```
-root@client-01:~# aws s3api get-bucket-lifecycle-configuration --bucket my-test-bucket
+root@ceph-host-01:# aws s3api get-bucket-lifecycle-configuration --bucket my-test-bucket
 
 An error occurred (InvalidAccessKeyId) when calling the GetBucketLifecycleConfiguration operation: The AWS Access Key Id you provided does not exist in our records.
 
 ```
 
-19. 
+19. Set the lifecycle configuration for the bucket.
+```
+root@client-01:~# aws s3api put-bucket-lifecycle-configuration --bucket my-test-bucket --lifecycle-configuration file://lifecycle.json  --endpoint-url http://192.168.9.12:8001
+```
+
+20. Retrieve the lifecycle configuration on the bucket.
+```
+root@ceph-host-01:# aws s3api get-bucket-lifecycle-configuration --bucket my-test-bucket --endpoint-url http://192.168.9.12:8001
+{
+    "Rules": [
+        {
+            "Expiration": {
+                "Days": 365
+            },
+            "ID": "double transition and expiration",
+            "Prefix": "",
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 20,
+                    "StorageClass": "cold.test"
+                },
+                {
+                    "Days": 5,
+                    "StorageClass": "hot.test"
+                }
+            ]
+        }
+    ]
+}
+```
+
+21. List the objects in the bucket and verify that the storage class is still STANDARD
+```
+root@ceph-host-01:# radosgw-admin bucket list --bucket my-test-bucket
+[
+    {
+        "name": "10mb_file",
+        "instance": "",
+        "ver": {
+            "pool": 7,
+            "epoch": 4
+        },
+        "locator": "",
+        "exists": "true",
+        "meta": {
+            "category": 1,
+            "size": 10485760,
+            "mtime": "2024-09-13T10:19:55.235492Z",
+            "etag": "f1c9645dbc14efddc7d8a322685f26eb",
+            "storage_class": "STANDARD",
+            "owner": "test1",
+            "owner_display_name": "test1",
+            "content_type": "application/octet-stream",
+            "accounted_size": 10485760,
+            "user_data": "",
+            "appendable": "false"
+        },
+        "tag": "886f47bb-2071-4f12-9fd8-df455f63ac81.44676.8467969203769252872",
+        "flags": 0,
+        "pending_map": [],
+        "versioned_epoch": 0
+    }
+]
+```
+
+22. Also check the object metadata to confirm the storage class is STANDARD
+```
+root@ceph-host-01:# aws s3api head-object --bucket my-test-bucket   --key 10mb_file  --endpoint-url http://192.168.9.12:8001
+{
+    "AcceptRanges": "bytes",
+    "Expiration": "expiry-date=\"Sun, 14 Sep 2025 00:00:00 GMT\", rule-id=\"double transition and expiration\"",
+    "LastModified": "Fri, 13 Sep 2024 10:19:55 GMT",
+    "ContentLength": 10485760,
+    "ETag": "\"f1c9645dbc14efddc7d8a322685f26eb\"",
+    "ContentType": "application/octet-stream",
+    "Metadata": {
+        "s3cmd-attrs": "atime:1721976105/ctime:1721976085/gid:0/gname:root/md5:f1c9645dbc14efddc7d8a322685f26eb/mode:33188/mtime:1721976085/uid:0/uname:root"
+    },
+    "StorageClass": "STANDARD"
+}
+```
+
+23. Verify that lifecycle configuration has not been scheduled yet
+```
+root@ceph-host-01:# radosgw-admin lc list
+[
+    {
+        "bucket": ":my-test-bucket:886f47bb-2071-4f12-9fd8-df455f63ac81.44565.1",
+        "started": "Thu, 01 Jan 1970 00:00:00 GMT",
+        "status": "UNINITIAL"
+    }
+]
+```
+
+24. Set the debug interval to see the lifecycle changes immediately
+```
+root@ceph-host-01:# ceph config set global rgw_lc_debug_interval 10
+```
+
+25. Restart the RGW service to apply new configuration.
+```
+root@ceph-host-01:# ceph orch restart rgw.client
+Scheduled to restart rgw.client.test-1.dtqdxk on host 'test-1'
+```
+
+26. Check the status of the lifecycle configuration and ensure it has changed to COMPLETE
+```
+root@ceph-host-01:# radosgw-admin lc list
+[
+    {
+        "bucket": ":my-test-bucket:886f47bb-2071-4f12-9fd8-df455f63ac81.44565.1",
+        "started": "Fri, 13 Sep 2024 10:26:29 GMT",
+        "status": "COMPLETE"
+    }
+]
+```
+
+27. Confirm the object has transitioned from STANDARD to hot.test, and finally to cold.test storage class
+```
+root@ceph-host-01:# aws s3api head-object --bucket my-test-bucket   --key 10mb_file  --endpoint-url http://192.168.9.12:8001
+{
+    "AcceptRanges": "bytes",
+    "Expiration": "expiry-date=\"Sun, 14 Sep 2025 00:00:00 GMT\", rule-id=\"double transition and expiration\"",
+    "LastModified": "Fri, 13 Sep 2024 10:19:55 GMT",
+    "ContentLength": 10485760,
+    "ETag": "\"f1c9645dbc14efddc7d8a322685f26eb\"",
+    "ContentType": "application/octet-stream",
+    "Metadata": {
+        "s3cmd-attrs": "atime:1721976105/ctime:1721976085/gid:0/gname:root/md5:f1c9645dbc14efddc7d8a322685f26eb/mode:33188/mtime:1721976085/uid:0/uname:root"
+    },
+    "StorageClass": "cold.test"
+}
+```
+
+28. Verify the storage class transition by listing the bucket contents
+```
+root@ceph-host-01:# radosgw-admin bucket list --bucket my-test-bucket
+[
+    {
+        "name": "10mb_file",
+        "instance": "",
+        "ver": {
+            "pool": 7,
+            "epoch": 5
+        },
+        "locator": "",
+        "exists": "true",
+        "meta": {
+            "category": 1,
+            "size": 10485760,
+            "mtime": "2024-09-13T10:19:55.235492Z",
+            "etag": "f1c9645dbc14efddc7d8a322685f26eb",
+            "storage_class": "cold.test",
+            "owner": "test1",
+            "owner_display_name": "test1",
+            "content_type": "application/octet-stream",
+            "accounted_size": 10485760,
+            "user_data": "",
+            "appendable": "false"
+        },
+        "tag": "_Datn3CIUvNDyc2Ma27jCAeSS6ZRhS1I",
+        "flags": 0,
+        "pending_map": [],
+        "versioned_epoch": 0
+    }
+]
+```
+
